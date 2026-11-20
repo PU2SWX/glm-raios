@@ -5,6 +5,8 @@ Mapa de raios detectados pelo **Geostationary Lightning Mapper (GLM)** do satél
 
 Feito para rodar no PC e ser aberto no celular, para compartilhar com amigos radioamadores.
 
+<img width="1366" height="770" alt="GLM" src="https://github.com/user-attachments/assets/69843824-da4c-416c-afec-e28337024863" />
+
 ## Como usar
 
 **Linux:** dê duplo clique em `GLM-Raios.desktop` ou rode `./iniciar-glm.sh`.
