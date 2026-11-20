@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b1120" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Mapa de raios em tempo quase real do GLM (GOES) - para radioamadores" />
+  
+  <title>GLM Raios • Radioamadores</title>
+  
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/x-icon;base64,AA" />
+  
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <style>
+    :root {
+      --bg: #0b1120;
+      --panel: rgba(15, 23, 42, 0.94);
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent2: #0ea5e9;
+      --recent: #ff1212;
+      --medium: #ffd000;
+      --old: #7dd3fc;
+      --severe: #ef4444;
+      --warning: #f59e0b;
+      --ok: #22c55e;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+    
+    #map {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+    }
+
+    .top-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      padding: 12px 14px 36px;
+      background: linear-gradient(to bottom, rgba(11,17,32,0.95) 40%, transparent);
+      pointer-events: none;
+    }
+    
+    .top-content {
+      pointer-events: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+    }
+    
+    .brand .bolt {
+      font-size: 20px;
+      filter: drop-shadow(0 0 6px #fbbf24);
+    }
+    
+    .brand span { color: var(--accent); font-weight: 500; }
+    
+    .stats-pill {
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 7px 14px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .stats-pill strong {
+      color: var(--recent);
+      font-size: 15px;
+    }
+
+    .legend {
+      position: absolute;
+      top: 68px;
+      right: 12px;
+      z-index: 1000;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      min-width: 130px;
+    }
+    
+    .legend-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    
+    .dot.recent { background: var(--recent); box-shadow: 0 0 8px var(--recent); }
+    .dot.medium { background: var(--medium); }
+    .dot.old { background: var(--old); }
+
+    /* Painel de clima lateral */
+    .weather-panel {
+      position: absolute;
+      top: 68px;
+      left: 12px;
+      z-index: 1000;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.7;
+      min-width: 170px;
+      display: none;
+    }
+    
+    .weather-panel.show { display: block; }
+    
+    .weather-panel .w-title {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: var(--accent);
+    }
+    
+    .weather-panel .w-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    
+    .weather-panel .w-label { color: var(--muted); }
+    .weather-panel .w-val { font-weight: 600; }
+    
+    .weather-panel .w-cape-high { color: var(--severe); }
+    .weather-panel .w-cape-med { color: var(--warning); }
+    .weather-panel .w-cape-low { color: var(--ok); }
+
+    /* Painel de células próximas */
+    .nearby-panel {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      transform: translateY(-50%);
+      z-index: 1000;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+      min-width: 200px;
+      display: none;
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+    
+    .nearby-panel.show { display: block; }
+    
+    .nearby-panel .n-title {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+    
+    .nearby-cell {
+      border-bottom: 1px solid var(--border);
+      padding: 6px 0;
+    }
+    
+    .nearby-cell:last-child { border-bottom: none; }
+    
+    .nearby-cell .n-name {
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .nearby-cell .n-detail { color: var(--muted); font-size: 11px; }
+    
+    .severity-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .severity-low { background: rgba(34,197,94,0.2); color: var(--ok); }
+    .severity-med { background: rgba(245,158,11,0.2); color: var(--warning); }
+    .severity-high { background: rgba(239,68,68,0.2); color: var(--severe); }
+
+    /* Gráfico de flash rate */
+    .chart-panel {
+      position: absolute;
+      bottom: 160px;
+      left: 12px;
+      z-index: 1000;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: none;
+    }
+    
+    .chart-panel.show { display: block; }
+    
+    .chart-panel canvas {
+      display: block;
+    }
+    
+    .chart-title {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .bottom {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      z-index: 1000;
+      padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+      background: linear-gradient(to top, rgba(11,17,32,0.97) 50%, transparent);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    
+    .bottom > * { pointer-events: auto; }
+    
+    .filters {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    
+    .filters::-webkit-scrollbar { display: none; }
+    
+    .filter-btn {
+      flex-shrink: 0;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid var(--border);
+      color: #cbd5e1;
+      padding: 8px 15px;
+      border-radius: 22px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    
+    .filter-btn.active {
+      background: var(--accent2);
+      border-color: var(--accent2);
+      color: white;
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
+    }
+    
+    .filter-btn:active { transform: scale(0.96); }
+    
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      flex: 1;
+      min-width: 44px;
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 10px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    
+    .btn:active { transform: scale(0.97); }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      border-color: transparent;
+      color: white;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+    }
+    
+    .btn-primary:active {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+    }
+    
+    .btn-toggle.active {
+      background: rgba(251, 191, 36, 0.2);
+      border-color: var(--recent);
+      color: var(--recent);
+    }
+    
+    .status-line {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .status-line .live {
+      color: #4ade80;
+      font-weight: 600;
+    }
+
+    .loading {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2000;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      padding: 18px 26px;
+      border-radius: 16px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    
+    .loading.show { display: flex; }
+    
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2.5px solid #334155;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+    }
+    
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.6); }
+      70% { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+    }
+    
+    .flash-recent {
+      animation: pulse 1.8s infinite;
+    }
+
+    .leaflet-control-zoom a {
+      background: var(--panel) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+      width: 34px !important;
+      height: 34px !important;
+      line-height: 34px !important;
+      font-size: 16px !important;
+    }
+    
+    .leaflet-control-zoom {
+      border: none !important;
+      margin-bottom: 140px !important;
+      margin-right: 12px !important;
+    }
+    
+    .leaflet-control-attribution {
+      background: rgba(11,17,32,0.75) !important;
+      color: #64748b !important;
+      font-size: 10px !important;
+      max-width: 60%;
+    }
+    
+    .leaflet-control-attribution a { color: #94a3b8 !important; }
+    
+    .leaflet-popup-content-wrapper {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    
+    .leaflet-popup-tip { background: #1e293b; }
+    
+    .leaflet-overlay-pane canvas {
+      filter: saturate(1.3) drop-shadow(0 0 3px rgba(255, 60, 0, 0.8));
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* Célula cluster marker */
+    .cell-marker {
+      background: transparent;
+      border: none;
+    }
+    
+    .cell-marker-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .cell-pulse {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 2px solid;
+      animation: cellPulse 2s infinite;
+    }
+    
+    @keyframes cellPulse {
+      0% { width: 20px; height: 20px; opacity: 0.8; }
+      100% { width: 80px; height: 80px; opacity: 0; }
+    }
+    
+    .cell-label {
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15,23,42,0.9);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  
+  <div class="top-bar">
+    <div class="top-content">
+      <div class="brand">
+        <span class="bolt">⚡</span>
+        GLM <span>Raios</span>
+      </div>
+      <div class="stats-pill">
+        Flashes: <strong id="flash-count">—</strong>
+        | Células: <strong id="cell-count" style="color:var(--warning)">—</strong>
+      </div>
+    </div>
+  </div>
+  
+  <div class="legend">
+    <div class="legend-title">Idade do raio</div>
+    <div class="legend-item"><div class="dot recent"></div> 0–2 min</div>
+    <div class="legend-item"><div class="dot" style="background:#ff6a00"></div> 2–5 min</div>
+    <div class="legend-item"><div class="dot medium"></div> 5–15 min</div>
+    <div class="legend-item"><div class="dot old"></div> 15–30 min</div>
+    <div class="legend-item" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
+      <span class="severity-badge severity-low">BAIXO</span> Flash rate baixo
+    </div>
+    <div class="legend-item"><span class="severity-badge severity-med">MÉDIO</span> Célula ativa</div>
+    <div class="legend-item"><span class="severity-badge severity-high">ALTO</span> Risco severo</div>
+  </div>
+  
+  <!-- Painel de clima -->
+  <div class="weather-panel" id="weather-panel">
+    <div class="w-title">🌤️ Clima Local</div>
+    <div class="w-row"><span class="w-label">Temp:</span><span class="w-val" id="w-temp">—</span></div>
+    <div class="w-row"><span class="w-label">Umidade:</span><span class="w-val" id="w-humidity">—</span></div>
+    <div class="w-row"><span class="w-label">Vento:</span><span class="w-val" id="w-wind">—</span></div>
+    <div class="w-row"><span class="w-label">CAPE:</span><span class="w-val" id="w-cape">—</span></div>
+    <div class="w-row"><span class="w-label">Chuva:</span><span class="w-val" id="w-rain">—</span></div>
+    <div class="w-row"><span class="w-label">Pressão:</span><span class="w-val" id="w-pressure">—</span></div>
+  </div>
+  
+  <!-- Painel de células próximas -->
+  <div class="nearby-panel" id="nearby-panel">
+    <div class="n-title">📍 Tempestades Próximas</div>
+    <div id="nearby-list"></div>
+  </div>
+  
+  <!-- Gráfico de flash rate -->
+  <div class="chart-panel" id="chart-panel">
+    <div class="chart-title">Flash rate (região) — últimos 30 min</div>
+    <canvas id="rate-chart" width="220" height="80"></canvas>
+  </div>
+  
+  <div class="bottom">
+    <div class="filters">
+      <button class="filter-btn active" data-region="br">Brasil</button>
+      <button class="filter-btn" data-region="sudeste">Sudeste</button>
+      <button class="filter-btn" data-region="sul">Sul</button>
+      <button class="filter-btn" data-region="norte">Norte</button>
+      <button class="filter-btn" data-region="nordeste">Nordeste</button>
+      <button class="filter-btn" data-region="all">América do Sul</button>
+    </div>
+    
+    <div class="actions">
+      <button class="btn" id="btn-locate" title="Minha posição">📍</button>
+      <button class="btn btn-toggle" id="btn-heatmap" title="Alternar heatmap">🔥</button>
+      <button class="btn btn-toggle" id="btn-sat" title="Nuvens (satélite infravermelho)">☁️</button>
+      <button class="btn btn-toggle" id="btn-radar" title="Radar de chuva (RainViewer)">🌧️</button>
+      <button class="btn btn-toggle" id="btn-weather" title="Painel de clima">🌤️</button>
+      <button class="btn btn-toggle" id="btn-nearby" title="Tempestades perto de mim">📡</button>
+      <button class="btn btn-toggle" id="btn-chart" title="Gráfico de flash rate">📊</button>
+      <button class="btn btn-toggle" id="btn-style" title="Estilo do mapa">🗺️</button>
+      <button class="btn btn-primary" id="btn-refresh">🔄 Atualizar</button>
+    </div>
+    
+    <div class="status-line" id="status-line">
+      Carregando dados do GLM…
+    </div>
+  </div>
+  
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <span>Buscando raios…</span>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

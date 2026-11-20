@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=GLM Raios
+Comment=Mapa de raios GLM para radioamadores
+Exec=bash -c 'cd "$(dirname "%k")" && ./iniciar-glm.sh'
+Icon=weather-storm
+Terminal=false
+Categories=Utility;Science;HamRadio;
+StartupNotify=true

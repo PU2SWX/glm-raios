@@ -1,0 +1,56 @@
+========================================
+  GLM Raios - Mapa para Radioamadores
+  Versão Windows
+========================================
+
+COMO USAR (bem simples):
+
+1. Instale o Python (se ainda não tiver):
+   → https://www.python.org/downloads/
+   → Durante a instalação, MARQUE a opção:
+     "Add Python to PATH"
+
+2. Descompacte esta pasta em qualquer lugar
+   (ex: Área de Trabalho ou Documentos)
+
+3. Clique duas vezes em um destes arquivos:
+
+   • iniciar-glm.bat
+     (abre uma janela preta + o mapa)
+
+   • iniciar-glm-silencioso.vbs
+     (abre só o mapa, sem janela preta)
+
+4. Pronto! O mapa abre no navegador.
+
+----------------------------------------
+DICAS
+
+• Para parar o servidor:
+  - Se usou o .bat → feche a janela preta
+  - Se usou o .vbs → abra o Gerenciador de Tarefas
+    e finalize o "python.exe"
+
+• Você pode criar um atalho do .bat ou .vbs
+  na Área de Trabalho para facilitar.
+
+• Os raios são REAIS (satélite GOES-19) e precisam de internet.
+  Na primeira vez o programa instala o netCDF4 e baixa os
+  últimos 30 min de dados (pode levar ~1 minuto; o mapa
+  mostra "Baixando dados do GLM…" enquanto isso).
+
+• No celular (mesma rede Wi-Fi), abra http://IP-DO-PC:8080
+  e, se o Windows perguntar, permita o Python no firewall.
+
+• Se o mapa abrir mas não mostrar raios, abra
+  http://localhost:8080/api/flashes?minutes=30
+  e veja se aparece "error" ou "loaded": false.
+
+• Modo demonstração (dados fictícios):
+  http://localhost:8080/?demo
+
+----------------------------------------
+Compartilhe com os amigos radioamadores!
+
+73
+========================================

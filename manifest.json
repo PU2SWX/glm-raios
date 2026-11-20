@@ -1,0 +1,24 @@
+{
+  "name": "GLM Raios - Radioamadores",
+  "short_name": "GLM Raios",
+  "description": "Mapa de raios em tempo quase real do Geostationary Lightning Mapper (GOES/NASA) para radioamadores",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
